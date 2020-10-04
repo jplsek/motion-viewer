@@ -96,8 +96,8 @@ function getCleanedMovies (page) {
 
   // remove not needed keys
   for (const i in movies) {
-    const { name, route } = movies[i]
-    cleanedMovies.push({ name, route })
+    const { name, route, stats } = movies[i]
+    cleanedMovies.push({ name, route, modified: stats.mtime })
   }
 
   return { movies: cleanedMovies, total: moviesApi.total }

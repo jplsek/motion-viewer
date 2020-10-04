@@ -13,7 +13,7 @@
     </div>
     <b-row v-else-if="movies.length > 0">
       <b-col v-for="movie in movies" :key="movie.name" sm="6" xl="4" class="pb-3">
-        <b-card :title="movie.name">
+        <b-card :title="movie.name" :sub-title="new Date(movie.modified).toLocaleString()">
           <b-embed type="video" controls class="pb-3">
             <source :src="movie.route" type="video/mp4">
           </b-embed>
