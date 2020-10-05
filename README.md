@@ -11,6 +11,7 @@ A readonly and simple web ui for the [motion project](https://motion-project.git
 
 - A [fully running instance of Motion](https://motion-project.github.io/motion_guide.html).
 - The `stream_localhost` option in motion must be set to `off`.
+- The `target_dir` option must be specified. (Motion Viewer does not utilize Motion's database.)
 
 ## Install
 

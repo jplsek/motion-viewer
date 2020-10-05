@@ -42,6 +42,7 @@ import Vue from 'vue'
 import Error from '~/components/Error.vue'
 
 export default Vue.extend({
+
   components: {
     Error
   },
@@ -60,6 +61,9 @@ export default Vue.extend({
       currentPage: 1,
       total: 0
     }
+  },
+  head: {
+    title: 'Movies'
   },
 
   watch: {

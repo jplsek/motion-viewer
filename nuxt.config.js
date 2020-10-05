@@ -1,6 +1,6 @@
 export default {
   head: {
-    titleTemplate: 'Motion Viewer',
+    titleTemplate: '%s - Motion Viewer',
     htmlAttrs: {
       lang: 'en'
     },
