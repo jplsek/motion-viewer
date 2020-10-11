@@ -81,3 +81,49 @@ Proxy the app through a web server and set up TLS.
 > Would you be willing to add more features to this?
 
 Sure. I made this for my personal needs, but PRs are welcome. Check out [motionEye](https://github.com/ccrisan/motioneye) for a more feature rich client which may fit your needs.
+
+# Motion Scripts
+
+These scripts can be used to manage the videos recorded by Motion. These scripts are located in the `scripts` folder.
+
+## Requirements
+
+Dependencies:
+
+```
+python3 ffmpeg
+```
+
+Python packages:
+
+```
+python3-watchdog python3-wheel python3-setuptools
+```
+
+## Install
+
+```
+sudo python3 -m pip install .
+```
+
+This will also install a systemd service called `watch-motion-videos`.
+
+## clean-motion-videos
+
+This script removes videos under a certain duration.
+
+It will read the motion config to get the value of `target_dir`, then check every video in the directory on whether it meets the duration criteria. If not, it will delete the video. If `--watch` is specified, it will instead check only for newly created videos.
+
+```
+usage: clean-motion-videos [-h] [-d] [-w] [-r ROOT] [-m MIN_DURATION]
+
+Remove short videos.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d, --dry-run         Show what files would be deleted (default: False)
+  -w, --watch           Watch the directory for new files (default: False)
+  -r ROOT, --root ROOT  Set the root directory (default: /)
+  -m MIN_DURATION, --min-duration MIN_DURATION
+                        The minimum duration in seconds of the video required to keep (default: 2)
+```

@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch for directory changes used by Motion to remove specific videos
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/clean-motion-videos -w
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
