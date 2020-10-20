@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
 import sys
-import time
 from functools import partial
 from multiprocessing import Lock, Pool, Process, Value
 from os import remove
-from os.path import getsize
+from os.path import getsize, getmtime
 from pathlib import Path
 from subprocess import run
+from time import sleep
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+
+gigabyte = 1_000_000_000
 
 
 class Printer:
@@ -56,10 +58,29 @@ class Printer:
 printer = Printer()
 
 
-def check_and_remove(file, dry_run, min_duration, with_dots=True):
+def remove_video(video, dry_run, msg=None):
+    if not msg:
+        msg = str(video)
+
+    if dry_run:
+        printer.info(f'Would delete {msg}')
+        return True
+
+    try:
+        remove(video)
+    except PermissionError:
+        printer.err(
+            f'Permission denied when trying to delete {msg}')
+        return False
+
+    printer.info(f'Deleted {msg}')
+    return True
+
+
+def check_and_remove(video, dry_run, min_duration, with_dots=True):
     # use ffprobe to get the duration of the video
     proc = run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-                '-of', 'default=noprint_wrappers=1:nokey=1', file],
+                '-of', 'default=noprint_wrappers=1:nokey=1', video],
                capture_output=True, text=True)
 
     stdout = proc.stdout.strip()
@@ -67,28 +88,23 @@ def check_and_remove(file, dry_run, min_duration, with_dots=True):
     if proc.returncode != 0:
         msg = ('Error running ffprobe: ' + stdout + proc.stderr).strip()
         printer.err(msg)
-        return
+        return False
 
     try:
         duration = float(stdout)
     except ValueError:
-        printer.warn(f'{file} could not be parsed. Received "{stdout}" '
+        printer.warn(f'{video} could not be parsed. Received "{stdout}" '
                      'instead of a number. Please check it manually.')
-        return
+        return False
 
     if duration < min_duration:
-        msg = f'(duration: {duration}): {file}'
-        if dry_run:
-            printer.info(f'Would delete {msg}')
-        else:
-            try:
-                remove(file)
-                printer.info(f'Deleted {msg}')
-            except PermissionError:
-                printer.err(
-                    f'Permission denied when trying to delete {msg}')
-    elif with_dots:
+        msg = f'(duration: {duration}): {video}'
+        return remove_video(video, dry_run, msg)
+
+    if with_dots:
         printer.info('.', newline=False)
+
+    return False
 
 
 def get_target_dir(root):
@@ -104,7 +120,39 @@ def get_target_dir(root):
         sys.exit(1)
 
 
-def watch(dry_run=False, min_duration=2):
+def get_dir_size(videos):
+    return sum(f.stat().st_size for f in videos) / gigabyte
+
+
+def get_video_size(video):
+    return video.stat().st_size / gigabyte
+
+
+def remove_old_videos(target_dir, dry_run, max_size):
+    videos = list(get_videos(target_dir))
+    dir_size = get_dir_size(videos)
+
+    if dir_size < max_size:
+        return
+
+    printer.info(f'Directory is {dir_size:0.2f}GB and is greater than '
+                 f'the max size of {max_size}GB, removing old files...')
+    videos.sort(key=getmtime)
+
+    for video in videos:
+        size = get_video_size(video)
+        msg = f'({dir_size:0.2f}GB/{max_size}GB): {video}'
+
+        if not remove_video(video, dry_run, msg):
+            break
+
+        dir_size -= size
+
+        if dir_size < max_size:
+            break
+
+
+def watch(dry_run=False, min_duration=2, max_size=50):
     target_dir = get_target_dir(Path('/'))
 
     def on_created(event):
@@ -116,12 +164,18 @@ def watch(dry_run=False, min_duration=2):
             # a created file does not mean the file has been
             # completely made/copied
             # (this is to avoid the "End of file" error from ffprobe)
+            sleep(1)
             cur_size = -1
-            while (cur_size != getsize(src)):
+            while cur_size != getsize(src):
                 cur_size = getsize(src)
-                time.sleep(1)
+                sleep(1)
 
-            check_and_remove(event.src_path, dry_run, min_duration, False)
+            # remove small files
+            if check_and_remove(event.src_path, dry_run, min_duration, False):
+                return
+
+            # remove old files
+            remove_old_videos(target_dir, dry_run, max_size)
 
         Process(target=run).start()
 
@@ -134,16 +188,27 @@ def watch(dry_run=False, min_duration=2):
     observer.join()
 
 
-def clean(dry_run=False, root=Path('/'), min_duration=2):
-    target_dir = get_target_dir(root)
+def get_videos(target_dir):
+    return Path(target_dir).glob('*.mkv')
 
-    videos = Path(target_dir).glob('*.mkv')
 
+def remove_small_videos(target_dir, dry_run, min_duration):
+    videos = get_videos(target_dir)
+
+    # Remove small videos
     check_and_remove_default = partial(
         check_and_remove, dry_run=dry_run, min_duration=min_duration)
 
     with Pool() as p:
         p.map(check_and_remove_default, videos)
+
+
+def clean(dry_run=False, root=Path('/'), min_duration=2, max_size=50):
+    target_dir = get_target_dir(root)
+
+    remove_small_videos(target_dir, dry_run, min_duration)
+
+    remove_old_videos(target_dir, dry_run, max_size)
 
     printer.info('')
 
@@ -163,6 +228,9 @@ def main():
     parser.add_argument('-m', '--min-duration', default=2, type=int,
                         help='The minimum duration in seconds of the video '
                         'required to keep')
+    parser.add_argument('-x', '--max-size', default=50, type=int,
+                        help='The maximum size in gigabytes of total videos '
+                        'to keep')
 
     args = parser.parse_args()
     args = vars(args)

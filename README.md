@@ -126,4 +126,6 @@ optional arguments:
   -r ROOT, --root ROOT  Set the root directory (default: /)
   -m MIN_DURATION, --min-duration MIN_DURATION
                         The minimum duration in seconds of the video required to keep (default: 2)
+  -x MAX_SIZE, --max-size MAX_SIZE
+                        The maximum size in gigabytes of total videos to keep (default: 50)
 ```
