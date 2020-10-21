@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "generate": "nuxt generate",
     "start": "nuxt start",
-    "lint": "eslint pages/** layouts/** components/** api/** --fix",
+    "lint": "eslint --ext vue,js pages layouts components api --fix",
     "clean": "rm -rf .nuxt"
   },
   "dependencies": {

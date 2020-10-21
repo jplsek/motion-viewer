@@ -67,11 +67,13 @@ function getMovies (page) {
     const filePath = `${root}${motionConfig.target_dir}/${file}`
     const route = `/api/movies/${file}`
     const stats = statSync(filePath)
+    const api = `/api/movies/${file.substr(0, file.lastIndexOf('.'))}`
     movies.push({
       name: file,
       route,
       stats,
-      filePath
+      filePath,
+      api
     })
   }
 
@@ -89,6 +91,11 @@ function getMovies (page) {
 // cache movies for individual requests
 let movies = []
 
+function getCleanMovie (movie) {
+  const { name, route, stats, api } = movie
+  return { name, route, modified: stats.mtime, api }
+}
+
 function getCleanedMovies (page) {
   const moviesApi = getMovies(page)
   movies = moviesApi.movies
@@ -96,8 +103,7 @@ function getCleanedMovies (page) {
 
   // remove not needed keys
   for (const i in movies) {
-    const { name, route, stats } = movies[i]
-    cleanedMovies.push({ name, route, modified: stats.mtime })
+    cleanedMovies.push(getCleanMovie(movies[i]))
   }
 
   return { movies: cleanedMovies, total: moviesApi.total }
@@ -118,7 +124,7 @@ export default function (req, res, next) {
     res.end(JSON.stringify(getCleanedMovies(page)))
     return
   } else if (req.url.includes('/api/movies/')) {
-    // only run if needed, because the client initially calls /api/movies already.
+    // only run if needed, because the client usually initially calls /api/movies already.
     if (movies.length === 0) {
       movies = getMovies()
     }
@@ -130,6 +136,10 @@ export default function (req, res, next) {
         res.setHeader('Content-Length', movie.stats.size)
         const readStream = createReadStream(filePath)
         readStream.pipe(res)
+        return
+      } else if (req.url === movie.api) {
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify(getCleanMovie(movie)))
         return
       }
     }

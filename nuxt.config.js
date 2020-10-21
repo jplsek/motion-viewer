@@ -11,5 +11,8 @@ export default {
   },
   buildModules: ['@nuxt/typescript-build'],
   modules: ['bootstrap-vue/nuxt'],
+  bootstrapVue: {
+    icons: true
+  },
   serverMiddleware: ['~/api/motion.js']
 }
