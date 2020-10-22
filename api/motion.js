@@ -67,9 +67,10 @@ function getMovies (page) {
     const filePath = `${root}${motionConfig.target_dir}/${file}`
     const route = `/api/movies/${file}`
     const stats = statSync(filePath)
-    const api = `/api/movies/${file.substr(0, file.lastIndexOf('.'))}`
+    const basename = file.substr(0, file.lastIndexOf('.'))
+    const api = `/api/movies/${basename}`
     movies.push({
-      name: file,
+      name: basename,
       route,
       stats,
       filePath,
@@ -131,10 +132,9 @@ export default function (req, res, next) {
 
     for (const movie of movies) {
       if (req.url === movie.route) {
-        const filePath = `${root}${motionConfig.target_dir}/${movie.name}`
         res.setHeader('Content-Type', 'video/x-matroska')
         res.setHeader('Content-Length', movie.stats.size)
-        const readStream = createReadStream(filePath)
+        const readStream = createReadStream(movie.filePath)
         readStream.pipe(res)
         return
       } else if (req.url === movie.api) {

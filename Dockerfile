@@ -1,10 +1,14 @@
 FROM node
 
-COPY . /app
-
 WORKDIR /app
 
+# Copy package json first to cache yarn install for future builds
+COPY package.json yarn.lock ./
+
 RUN yarn install
+
+# Now copy everything else
+COPY . .
 
 RUN yarn build
 

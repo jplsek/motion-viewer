@@ -6,3 +6,4 @@ dist
 .nuxt
 Dockerfile
 .eslint*
+motionscripts.egg-info

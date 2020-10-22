@@ -17,8 +17,8 @@
       </b-navbar-nav>
 
       <b-navbar-nav class="ml-auto">
-        <b-nav-item href="https://github.com/jplsek/motion-viewer">
-          Source
+        <b-nav-item href="https://github.com/jplsek/motion-viewer" title="Source code">
+          <b-icon-code-square />
         </b-nav-item>
       </b-navbar-nav>
     </b-collapse>
