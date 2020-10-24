@@ -77,24 +77,35 @@ def remove_video(video, dry_run, msg=None):
     return True
 
 
-def check_and_remove(video, dry_run, min_duration, with_dots=True):
-    # use ffprobe to get the duration of the video
-    proc = run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-                '-of', 'default=noprint_wrappers=1:nokey=1', video],
-               capture_output=True, text=True)
+def check_and_remove(video, dry_run, min_duration, with_dots=True, retry=False):
+    retry_count = 0 if retry else 3
 
-    stdout = proc.stdout.strip()
+    while retry_count < 3:
+        # use ffprobe to get the duration of the video
+        proc = run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                    '-of', 'default=noprint_wrappers=1:nokey=1', video],
+                capture_output=True, text=True)
 
-    if proc.returncode != 0:
-        msg = ('Error running ffprobe: ' + stdout + proc.stderr).strip()
-        printer.err(msg)
-        return False
+        stdout = proc.stdout.strip()
 
-    try:
-        duration = float(stdout)
-    except ValueError:
-        printer.warn(f'{video} could not be parsed. Received "{stdout}" '
-                     'instead of a number. Please check it manually.')
+        if proc.returncode != 0:
+            msg = ('Error running ffprobe: ' + stdout + proc.stderr).strip()
+            printer.err(msg)
+            sleep(1)
+            retry_count += 1
+            continue
+
+        try:
+            duration = float(stdout)
+            break
+        except ValueError:
+            printer.warn(f'{video} could not be parsed. Received "{stdout}" '
+                        'instead of a number. Please check it manually.')
+
+        sleep(1)
+        retry_count += 1
+
+    if retry and retry_count == 3:
         return False
 
     if duration < min_duration:
@@ -171,7 +182,7 @@ def watch(dry_run=False, min_duration=2, max_size=50):
                 sleep(1)
 
             # remove small files
-            if check_and_remove(event.src_path, dry_run, min_duration, False):
+            if check_and_remove(event.src_path, dry_run, min_duration, False, True):
                 return
 
             # remove old files
