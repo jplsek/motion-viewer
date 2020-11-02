@@ -77,35 +77,41 @@ def remove_video(video, dry_run, msg=None):
     return True
 
 
-def check_and_remove(video, dry_run, min_duration, with_dots=True, retry=False):
-    retry_count = 0 if retry else 3
+def get_duration(video):
+    # use ffprobe to get the duration of the video
+    proc = run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                '-of', 'default=noprint_wrappers=1:nokey=1', video],
+               capture_output=True, text=True)
 
-    while retry_count < 3:
-        # use ffprobe to get the duration of the video
-        proc = run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-                    '-of', 'default=noprint_wrappers=1:nokey=1', video],
-                capture_output=True, text=True)
+    stdout = proc.stdout.strip()
 
-        stdout = proc.stdout.strip()
+    if proc.returncode != 0:
+        msg = ('Error running ffprobe: ' + stdout + proc.stderr).strip()
+        printer.err(msg)
+        sleep(1)
+        return
 
-        if proc.returncode != 0:
-            msg = ('Error running ffprobe: ' + stdout + proc.stderr).strip()
-            printer.err(msg)
+    try:
+        return float(stdout)
+    except ValueError:
+        printer.warn(f'{video} could not be parsed. Received "{stdout}" '
+                     'instead of a number. Please check it manually.')
+
+
+def check_and_remove(video, dry_run, min_duration,
+                     with_dots=True, retry=False):
+    if retry:
+        retry_count = 0
+        while retry_count < 3:
+            duration = get_duration(video)
+            if duration:
+                break
             sleep(1)
             retry_count += 1
-            continue
+    else:
+        duration = get_duration(video)
 
-        try:
-            duration = float(stdout)
-            break
-        except ValueError:
-            printer.warn(f'{video} could not be parsed. Received "{stdout}" '
-                        'instead of a number. Please check it manually.')
-
-        sleep(1)
-        retry_count += 1
-
-    if retry and retry_count == 3:
+    if not duration:
         return False
 
     if duration < min_duration:
@@ -182,7 +188,8 @@ def watch(dry_run=False, min_duration=2, max_size=50):
                 sleep(1)
 
             # remove small files
-            if check_and_remove(event.src_path, dry_run, min_duration, False, True):
+            if check_and_remove(event.src_path, dry_run, min_duration,
+                                False, True):
                 return
 
             # remove old files
@@ -203,21 +210,23 @@ def get_videos(target_dir):
     return Path(target_dir).glob('*.mkv')
 
 
-def remove_small_videos(target_dir, dry_run, min_duration):
+def remove_small_videos(target_dir, dry_run, min_duration, progress):
     videos = get_videos(target_dir)
 
     # Remove small videos
     check_and_remove_default = partial(
-        check_and_remove, dry_run=dry_run, min_duration=min_duration)
+        check_and_remove, dry_run=dry_run, min_duration=min_duration,
+        with_dots=progress)
 
     with Pool() as p:
         p.map(check_and_remove_default, videos)
 
 
-def clean(dry_run=False, root=Path('/'), min_duration=2, max_size=50):
+def clean(dry_run=False, root=Path('/'), min_duration=2, max_size=50,
+          no_progress=False):
     target_dir = get_target_dir(root)
 
-    remove_small_videos(target_dir, dry_run, min_duration)
+    remove_small_videos(target_dir, dry_run, min_duration, not no_progress)
 
     remove_old_videos(target_dir, dry_run, max_size)
 
@@ -242,6 +251,8 @@ def main():
     parser.add_argument('-x', '--max-size', default=50, type=int,
                         help='The maximum size in gigabytes of total videos '
                         'to keep')
+    parser.add_argument('-n', '--no-progress', action='store_true',
+                        help='Don\'t show a progress bar')
 
     args = parser.parse_args()
     args = vars(args)
@@ -250,6 +261,7 @@ def main():
     if should_watch:
         # watchdog does not work with sshfs
         args.pop('root')
+        args.pop('no_progress')
         watch(**args)
     else:
         clean(**args)

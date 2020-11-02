@@ -1,0 +1,6 @@
+[Unit]
+Description=Remove specific videos used by Motion
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/clean-motion-videos -n
