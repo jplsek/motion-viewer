@@ -1,11 +1,14 @@
 # Motion Viewer
 
-A readonly and simple web ui for the [motion project](https://motion-project.github.io).
+A readonly and simple web ui for using with the [motion project](https://motion-project.github.io) originally made for my personal use.
 
 ## Features
 
 - **View the video recordings**
 - View the stream
+
+![Streams](streams.png)
+![Videos](videos.png)
 
 ## Requirements
 
@@ -15,25 +18,32 @@ A readonly and simple web ui for the [motion project](https://motion-project.git
 
 ## Install
 
+The following instructions are assuming the install is on the same server as the motion server.
+
 Install `git docker`
 
 ```
-git clone https://github.com/jplsek/motion-viewer
+git clone https://github.com/jplsek/motion-viewer && cd motion-viewer
 docker build -t motionviewer .
-docker run -p 3000:3000 -e SERVER=http://motion.lan -v /:/motion --restart unless-stopped -d motionviewer
+docker run -p 3000:3000 -e SERVER=http://your-motion-server.lan -v /:/motion --restart unless-stopped -d motionviewer
 ```
+
+Now it should be up on http://localhost:3000.
+
+The `SERVER` environment variable is meant to point to the motion server. You can't just put localhost, because in that context, localhost would be the container.
+The `-v` mount is meant to read the motion config and access where motion records its videos.
 
 ## Development
 
 This requires a fully operational motion project already running.
 
-If you want to use your server:
+If you want to use your server while developing locally:
 
 Install `sshfs`
 
 ```sh
 mkdir motion
-sshfs motion.lan:/ motion
+sshfs your-motion-server.lan:/ motion
 ```
 
 Set up `.env` to your needs:
@@ -80,7 +90,7 @@ Proxy the app through a web server and set up TLS.
 
 > Would you be willing to add more features to this?
 
-Sure. I made this for my personal needs, but PRs are welcome. Check out [motionEye](https://github.com/ccrisan/motioneye) for a more feature rich client which may fit your needs.
+Sure. I made this for my personal needs, but PRs are still welcome. Check out [motionEye](https://github.com/ccrisan/motioneye) for a more feature rich client which may fit your needs.
 
 # Motion Scripts
 
